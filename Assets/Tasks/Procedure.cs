@@ -1,0 +1,201 @@
+﻿using System;
+using System.Linq;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.Video;
+
+public class Procedure : MonoBehaviour
+{
+    // to set in inspector
+
+    public Text infoDisplay;
+    public AudioSource sessionDone;
+    public AudioSource backgroundAudio;
+    public VideoPlayer videoPlayer;
+    public Image restingImage;
+    public GameObject setupUI;
+
+
+    // overrides
+
+    void Awake()
+    {
+        setupUI.SetActive(true);
+    }
+    
+    void Start()
+    {
+        _hrClient = GetComponent<HRClient>();
+        _log = GetComponent<Log>();
+
+        _videoSets = GetComponent<VideoSets>();
+
+        _gazePoint = FindObjectOfType<GazePoint>();
+
+        _gazeClient = FindObjectOfType<GazeClient>();
+        _gazeClient.Start += OnGazeClientStart;
+        _gazeClient.Sample += OnGazeClientSample;
+
+        videoPlayer.loopPointReached += OnVideoStopped;
+    }
+
+    void Update()
+    {
+        if (Input.GetKey(KeyCode.Escape))
+        {
+            if (videoPlayer.isPlaying)
+            {
+                InterruptVideo();
+            }
+        }
+        if (Input.GetKey(KeyCode.Space))
+        {
+            if (restingImage.gameObject.activeSelf)
+            {
+                restingImage.gameObject.SetActive(false);
+                NextVideo();
+            }
+        }
+    }
+
+
+    // Public methods
+
+    public void StartSet1()
+    {
+        _videoSets.SelectSet(0);
+
+        StartSet();
+    }
+
+    public void StartSet2()
+    {
+        _videoSets.SelectSet(1);
+
+        StartSet();
+    }
+
+    public void Finish()
+    {
+        if (_gazeClient.isTracking)
+        {
+            _gazeClient.ToggleTracking();
+        }
+
+        _hrClient.Stop();
+        _log.Close();
+
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
+
+
+    // Internal
+
+    HRClient _hrClient;
+    Log _log;
+
+    GazePoint _gazePoint;
+    GazeClient _gazeClient;
+
+    VideoSets _videoSets;
+
+    void HideUI()
+    {
+        setupUI.SetActive(false);
+        Cursor.visible = false;
+    }
+
+    void ShowUI()
+    {
+        setupUI.SetActive(true);
+        Cursor.visible = true;
+    }
+
+    void StartSet()
+    {
+        HideUI();
+
+        _hrClient.StartSet(_videoSets.CurrentSetID);
+
+        backgroundAudio.Play();
+
+        infoDisplay.text = "press SPACE to start...";
+
+        Invoke(nameof(WaitForNextVideo), 1f);
+    }
+
+    void WaitForNextVideo()
+    {
+        infoDisplay.text = "";
+        restingImage.gameObject.SetActive(true);
+    }
+
+    void NextVideo()
+    {
+        restingImage.gameObject.SetActive(false);
+
+        var video = _videoSets.Next();
+
+        if (video != null)
+        {
+            videoPlayer.clip = video;
+            videoPlayer.gameObject.SetActive(true);
+
+            _hrClient.StartVideo(video.name.Split('.')[0].Last());
+
+            videoPlayer.Play();
+        }
+        else
+        {
+            throw new Exception("Internal error: no more videos");
+        }
+    }
+
+    void InterruptVideo()
+    {
+        _hrClient.InterruptVideo();
+
+        videoPlayer.Stop();
+
+        OnVideoStopped(videoPlayer);
+    }
+
+    void OnGazeClientStart(object sender, EventArgs e)
+    {
+        var buttons = FindObjectsOfType(typeof(Button)).Where(btn => (btn as Button).tag == "only-gaze-active");
+        foreach (var btn in buttons)
+        {
+            (btn as Button).interactable = true;
+        }
+    }
+
+    void OnGazeClientSample(object sender, EventArgs e)
+    {
+        _gazePoint.MoveTo(_gazeClient.lastSample);
+    }
+
+    void OnVideoStopped(VideoPlayer player)
+    {
+        _hrClient.StopVideo();
+
+        videoPlayer.gameObject.SetActive(false);
+
+        if (_videoSets.HasMoreVideos)
+        {
+            WaitForNextVideo();
+        }
+        else
+        {
+            backgroundAudio.Stop();
+            _hrClient.StopSet();
+
+            sessionDone.Play();
+
+            ShowUI();
+        }
+    }
+}
