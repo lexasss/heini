@@ -63,16 +63,22 @@ public class Procedure : MonoBehaviour
 
     public void StartSet1()
     {
-        _videoSets.SelectSet(0);
-
-        StartSet();
+        StartSet(0);
     }
 
     public void StartSet2()
     {
-        _videoSets.SelectSet(1);
+        StartSet(1);
+    }
 
-        StartSet();
+    public void StartSet3()
+    {
+        StartSet(2);
+    }
+
+    public void StartSet4()
+    {
+        StartSet(3);
     }
 
     public void Finish()
@@ -115,11 +121,12 @@ public class Procedure : MonoBehaviour
         Cursor.visible = true;
     }
 
-    void StartSet()
+    void StartSet(int setID)
     {
         HideUI();
 
-        _hrClient.StartSet(_videoSets.CurrentSetID);
+        _videoSets.SelectSet(setID);
+        _hrClient.StartSet(setID + 1);
 
         backgroundAudio.Play();
 

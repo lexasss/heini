@@ -8,6 +8,8 @@ public class VideoSets : MonoBehaviour
 
     public VideoClip[] set1;
     public VideoClip[] set2;
+    public VideoClip[] set3;
+    public VideoClip[] set4;
 
     // props
 
@@ -18,10 +20,12 @@ public class VideoSets : MonoBehaviour
 
     public void Awake()
     {
-        _sets = new VideoClip[2][]
+        _sets = new VideoClip[4][]
         {
             set1,
             set2,
+            set3,
+            set4,
         };
     }
 
