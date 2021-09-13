@@ -6,34 +6,23 @@ using UnityEngine;
 
 public class Log : MonoBehaviour
 {
-    // definitions
-
-    const string DELIMITER = "\t";
-
-    // internal members
-
-    GazeClient _gazeClient;
-    NetStation _netStation;
-    StreamWriter _writer;
-    List<string> _lastEvents = new List<string>();
-    ulong _gazeTimestamp = 0;
-
     // overrides
+
     void Start()
     {
         var now = DateTime.Now;
-        var date = String.Join("-", (new int[] { now.Year, now.Month, now.Day }).Select(num => Pad(num, 2)));
-        var time = String.Join("-", (new int[] { now.Hour, now.Minute, now.Second }).Select(num => Pad(num, 2)));
+        var date = string.Join("-", (new int[] { now.Year, now.Month, now.Day }).Select(num => Pad(num, 2)));
+        var time = string.Join("-", (new int[] { now.Hour, now.Minute, now.Second }).Select(num => Pad(num, 2)));
 
         _writer = new StreamWriter($"log/log_{date}_{time}.txt");
 
         _gazeClient = FindObjectOfType<GazeClient>();
-        _gazeClient.Sample += onGazeSample;
+        _gazeClient.Sample += OnGazeSample;
 
         _netStation = FindObjectOfType<NetStation>();
     }
 
-    // public methods
+    // methods
 
     public void HR(string aEvent)
     {
@@ -90,7 +79,7 @@ public class Log : MonoBehaviour
 
     public void Close()
     {
-        _gazeClient.Sample -= onGazeSample;
+        _gazeClient.Sample -= OnGazeSample;
 
         lock (_lastEvents)
         {
@@ -106,7 +95,17 @@ public class Log : MonoBehaviour
         _writer.Close();
     }
 
-    // internal methods
+
+    // internal
+
+    const string DELIMITER = "\t";
+
+    GazeClient _gazeClient;
+    NetStation _netStation;
+    StreamWriter _writer;
+
+    ulong _gazeTimestamp = 0;
+    readonly List<string> _lastEvents = new List<string>();
 
     void PushEvent(string aEvent)
     {
@@ -121,7 +120,7 @@ public class Log : MonoBehaviour
     {
         if (_writer != null)
         {
-            _writer.WriteLine(String.Join(DELIMITER, new string[] { _netStation.Timestamp.ToString(), _gazeTimestamp.ToString(), aTitle, aMessage }));
+            _writer.WriteLine(string.Join(DELIMITER, new string[] { _netStation.Timestamp.ToString(), _gazeTimestamp.ToString(), aTitle, aMessage }));
             Debug.Log($"{aTitle}: {aMessage}");
         }
         else
@@ -136,14 +135,14 @@ public class Log : MonoBehaviour
         return result.PadLeft(aMinLength, '0');
     }
 
-    void onGazeSample(object sender, EventArgs e)
+    void OnGazeSample(object sender, EventArgs e)
     {
-        var sample = _gazeClient.lastSample;
+        var sample = _gazeClient.LastSample;
         _gazeTimestamp = sample.ts;
 
         lock (_lastEvents)
         {
-            var events = String.Join(", ", _lastEvents);
+            var events = string.Join(", ", _lastEvents);
             var fields = new string[] {
                 _netStation.Timestamp.ToString(),
                 sample.ts.ToString(),
@@ -153,7 +152,7 @@ public class Log : MonoBehaviour
                 events,
             };
 
-            _writer.WriteLine(String.Join(DELIMITER, fields));
+            _writer.WriteLine(string.Join(DELIMITER, fields));
 
             _lastEvents.Clear();
         }

@@ -12,39 +12,43 @@ public class GazeSimulator : MonoBehaviour
 
     public class SampleArgs : EventArgs
     {
-        public readonly GazeIO.Sample sample;
-        public SampleArgs(ulong aTimestamp, float aX, float aY, float aPupil)
+        public readonly GazeIO.Sample Sample;
+        public SampleArgs(ulong timestamp, float x, float y, float pupil)
         {
-            sample = new GazeIO.Sample();
-            sample.type = GazeIO.MessageType.sample;
-            sample.ts = aTimestamp;
-            sample.x = aX;
-            sample.y = aY;
-            sample.p = aPupil;
+            Sample = new GazeIO.Sample
+            {
+                type = GazeIO.MessageType.Sample,
+                ts = timestamp,
+                x = x,
+                y = y,
+                p = pupil
+            };
         }
     }
 
     public class StateArgs : EventArgs
     {
-        public readonly GazeIO.State state;
-        public StateArgs(GazeIO.State aState)
+        public readonly GazeIO.State State;
+        public StateArgs(GazeIO.State state)
         {
-            state = aState;
+            State = state;
         }
     }
 
     public class DeviceArgs : EventArgs
     {
-        public readonly GazeIO.Device device;
-        public DeviceArgs(string aDeviceName)
+        public readonly GazeIO.Device Device;
+        public DeviceArgs(string deviceName)
         {
-            device = new GazeIO.Device();
-            device.type = GazeIO.MessageType.device;
-            device.name = aDeviceName;
+            Device = new GazeIO.Device
+            {
+                type = GazeIO.MessageType.Device,
+                name = deviceName
+            };
         }
     }
 
-    // public methods
+    // events
 
     public event EventHandler<SampleArgs> Sample = delegate { };
     public event EventHandler<StateArgs> State = delegate { };
@@ -52,35 +56,29 @@ public class GazeSimulator : MonoBehaviour
 
     public bool Enabled { get; private set; } = false;
 
-    // internal members
-
-    GazeIO.State _state = new GazeIO.State();
-    Vector2 _offset;
-    ulong _timeStamp = 0;
-
     // overrides
 
     void Awake()
     {
-        Rect rc = Utils.GetWindowRect();
+        Rect rc = WinAPI.GetWindowRect();
 
         _offset = new Vector2(
             rc.x + (rc.width - Screen.width) / 2,
             rc.y + (rc.height - Screen.height) / 2 + TOOLBAR_HEIGHT
         ); ;
 
-        _state.type = GazeIO.MessageType.state;
+        _state.type = GazeIO.MessageType.State;
         _state.value = (int)GazeIO.StateValue.Connected | (int)GazeIO.StateValue.Calibrated;
     }
 
-    // public methods
+    // methods
 
     public void ToggleTracking()
     {
         if ((_state.value & (int)GazeIO.StateValue.Tracking) == 0)
         {
             _state.value |= (int)GazeIO.StateValue.Tracking;
-            InvokeRepeating("EmitSample", SAMPLING_INTERVAL, SAMPLING_INTERVAL);
+            InvokeRepeating(nameof(EmitSample), SAMPLING_INTERVAL, SAMPLING_INTERVAL);
         }
         else
         {
@@ -99,21 +97,25 @@ public class GazeSimulator : MonoBehaviour
         State(this, new StateArgs(_state));
     }
 
-    // internal methods
+
+    // internal
+
+    readonly GazeIO.State _state = new GazeIO.State();
+    Vector2 _offset;
+    ulong _timeStamp = 0;
 
     void EmitSample()
     {
         _timeStamp += (ulong)(SAMPLING_INTERVAL * 1000);
 
-        float x, y;
-        MouseToGaze(out x, out y);
+        MouseToGaze(out float x, out float y);
         
         Sample(this, new SampleArgs(_timeStamp, x, y, 6.0f));
     }
 
-    void MouseToGaze(out float aX, out float aY)
+    void MouseToGaze(out float x, out float y)
     {
-        aX = Input.mousePosition.x + _offset.x;
-        aY = (Screen.height - Input.mousePosition.y) + _offset.y;
+        x = Input.mousePosition.x + _offset.x;
+        y = (Screen.height - Input.mousePosition.y) + _offset.y;
     }
 }

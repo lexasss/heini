@@ -29,25 +29,9 @@ public class GazeClient : MonoBehaviour
     public event EventHandler State = delegate { };
     public event EventHandler Sample = delegate { };
 
-    public bool isTracking { get; private set; } = false;
-    public GazeIO.Sample lastSample { get; private set; }
-    public RawPoint location { get; private set; } = new RawPoint(0, 0f, 0f);
-
-    // internal members
-
-    bool _simulated { get { return simulate/* || Environment.UserName == "olequ"*/; } }
-
-    TobiiClient _tobii = null;
-    WebSocketSharp.WebSocket _ws = null;
-    GazeSimulator _simulator = null;
-    Log _log;
-
-    Queue<string> _messages = new Queue<string>();
-    Vector2 _scale = new Vector2(1f, 1f);
-    Vector2 _offset = new Vector2(0f, 0f);
-    Smoother<RawPoint> _smoother;
-    bool _hasInitiatedTracking = false;
-    bool _trackingInitialized = false;
+    public bool IsTracking { get; private set; } = false;
+    public GazeIO.Sample LastSample { get; private set; }
+    public RawPoint Location { get; private set; } = new RawPoint(0, 0f, 0f);
 
     // overrides
 
@@ -58,17 +42,19 @@ public class GazeClient : MonoBehaviour
 
         _log = FindObjectOfType<Log>();
 
-        _smoother = new Smoother<RawPoint>();
-        _smoother.saccadeThreshold = 30;
-        _smoother.timeWindow = 150;
-        _smoother.dampFixation = 700;
+        _smoother = new Smoother<RawPoint>
+        {
+            SaccadeThreshold = 30,
+            TimeWindow = 150,
+            DampFixation = 700
+        };
 
-        if (_simulated)
+        if (_isSimulated)
         {
             _simulator = FindObjectOfType<GazeSimulator>();
-            _simulator.Sample += onSimulatorSample;
-            _simulator.State += onSimulatorState;
-            _simulator.Device += onSimulatorDevice;
+            _simulator.Sample += OnSimulatorSample;
+            _simulator.State += OnSimulatorState;
+            _simulator.Device += OnSimulatorDevice;
             _simulator.Initialize();
             return;
         }
@@ -76,10 +62,10 @@ public class GazeClient : MonoBehaviour
         if (useTobiiSDK)
         {
             _tobii = GetComponent<TobiiClient>();
-            _tobii.Error += onTobiiError;
-            _tobii.Ready += onTobiiReady;
-            _tobii.Toggled += onTobiiToggled;
-            _tobii.Data += onTobiiData;
+            _tobii.Error += OnTobiiError;
+            _tobii.Ready += OnTobiiReady;
+            _tobii.Toggled += OnTobiiToggled;
+            _tobii.Data += OnTobiiData;
 
             tobiiEye.value = (int)_tobii.eye;
         }
@@ -137,9 +123,9 @@ public class GazeClient : MonoBehaviour
 
     void OnApplicationQuit()
     {
-        if (_ws != null && isTracking && _hasInitiatedTracking)
+        if (_ws != null && IsTracking && _hasInitiatedTracking)
         {
-            _ws.Send(GazeIO.Request.toggleTracking);
+            _ws.Send(GazeIO.Request.ToggleTracking);
         }
         if (_tobii != null)
         {
@@ -148,23 +134,23 @@ public class GazeClient : MonoBehaviour
         }
     }
 
-    // public methods
+    // methods
 
     public void ShowOptions()
     {
-        if (!_simulated && !useTobiiSDK)
-            _ws.Send(GazeIO.Request.showOptions);
+        if (!_isSimulated && !useTobiiSDK)
+            _ws.Send(GazeIO.Request.ShowOptions);
     }
 
     public void Calibrate()
     {
-        if (!_simulated && !useTobiiSDK)
-            _ws.Send(GazeIO.Request.calibrate);
+        if (!_isSimulated && !useTobiiSDK)
+            _ws.Send(GazeIO.Request.Calibrate);
     }
 
     public void ToggleTracking()
     {
-        if (_simulated)
+        if (_isSimulated)
         {
             _simulator.ToggleTracking();
         }
@@ -174,11 +160,11 @@ public class GazeClient : MonoBehaviour
         }
         else if (_ws != null)
         {
-            if (!isTracking)
+            if (!IsTracking)
             {
                 _hasInitiatedTracking = true;
             }
-            _ws.Send(GazeIO.Request.toggleTracking);
+            _ws.Send(GazeIO.Request.ToggleTracking);
         }
     }
 
@@ -188,29 +174,45 @@ public class GazeClient : MonoBehaviour
             _tobii.eye = (TobiiClient.Eye)tobiiEye.value;
     }
 
-    // internal methods
 
-    void ParseMessage(string aMessage)
+    // internal
+
+    bool _isSimulated => simulate/* || Environment.UserName == "olequ"*/;
+
+    TobiiClient _tobii = null;
+    WebSocketSharp.WebSocket _ws = null;
+    GazeSimulator _simulator = null;
+    Log _log;
+
+    readonly Queue<string> _messages = new Queue<string>();
+    
+    Vector2 _scale = new Vector2(1f, 1f);
+    Vector2 _offset = new Vector2(0f, 0f);
+    Smoother<RawPoint> _smoother;
+    bool _hasInitiatedTracking = false;
+    bool _trackingInitialized = false;
+
+    void ParseMessage(string message)
     {
-        GazeIO.Sample sample = JsonUtility.FromJson<GazeIO.Sample>(aMessage);
-        if (sample.isValid)
+        GazeIO.Sample sample = JsonUtility.FromJson<GazeIO.Sample>(message);
+        if (sample.IsValid)
         {
-            lastSample = sample;
+            LastSample = sample;
             //print($"WS:> sample = {sample.x}, {sample.y}");
             UpdateCursorLocation(sample);
             return;
         }
 
-        GazeIO.State state = JsonUtility.FromJson<GazeIO.State>(aMessage);
-        if (state.isValid)
+        GazeIO.State state = JsonUtility.FromJson<GazeIO.State>(message);
+        if (state.IsValid)
         {
             //print($"WS:> status = {state.value}");
             UpdateState(state);
             return;
         }
 
-        GazeIO.Device device = JsonUtility.FromJson<GazeIO.Device>(aMessage);
-        if (device.isValid)
+        GazeIO.Device device = JsonUtility.FromJson<GazeIO.Device>(message);
+        if (device.IsValid)
         {
             //print($"WS:> device name = {device.name}");
             UpdateDeviceInfo(device);
@@ -218,26 +220,26 @@ public class GazeClient : MonoBehaviour
         }
     }
 
-    void UpdateDeviceInfo(GazeIO.Device aDevice)
+    void UpdateDeviceInfo(GazeIO.Device device)
     {
-        deviceName.text = aDevice.name;
+        deviceName.text = device.name;
     }
 
-    void UpdateState(GazeIO.State aState)
+    void UpdateState(GazeIO.State state)
     {
-        bool trackingChanged = aState.isTracking != isTracking;
+        bool trackingChanged = state.IsTracking != IsTracking;
 
-        isTracking = aState.isTracking;
+        IsTracking = state.IsTracking;
 
         // gaze ui and controls
-        options.interactable = !isTracking && !aState.isBusy;
-        calibrate.interactable = !isTracking && aState.isConnected && !aState.isBusy;
-        toggleTracking.interactable = aState.isConnected && aState.isCalibrated && !aState.isBusy && !isTracking;
-        toggleTracking.GetComponentInChildren<Text>().text = isTracking ? "Stop" : "Start";
+        options.interactable = !IsTracking && !state.IsBusy;
+        calibrate.interactable = !IsTracking && state.IsConnected && !state.IsBusy;
+        toggleTracking.interactable = state.IsConnected && state.IsCalibrated && !state.IsBusy && !IsTracking;
+        toggleTracking.GetComponentInChildren<Text>().text = IsTracking ? "Stop" : "Start";
 
         State(this, new EventArgs());
 
-        if (isTracking && !_trackingInitialized)
+        if (IsTracking && !_trackingInitialized)
         {
             InitializeTracking();
             _log.ClearEvents();
@@ -246,9 +248,9 @@ public class GazeClient : MonoBehaviour
         if (trackingChanged)
         {
             // input module
-            GetComponent<StandaloneInputModule>().enabled = !isTracking;
+            GetComponent<StandaloneInputModule>().enabled = !IsTracking;
 
-            if (isTracking)
+            if (IsTracking)
             {
                 Start(this, new EventArgs());
             }
@@ -259,21 +261,21 @@ public class GazeClient : MonoBehaviour
         }
     }
 
-    void UpdateCursorLocation(GazeIO.Sample aSample)
+    void UpdateCursorLocation(GazeIO.Sample sample)
     {
-        Vector2 location = GazeToGameWindow(aSample);
+        Vector2 location = GazeToGameWindow(sample);
 
-        this.location = _smoother.Feed(new RawPoint(aSample.ts, location.x, location.y));
+        Location = _smoother.Feed(new RawPoint(sample.ts, location.x, location.y));
         // debug.text = $"S = {aSample.x:N0} {aSample.y:N0}; F = {this.location.x:N0} {this.location.y:N0}";
 
         Sample(this, new EventArgs());
     }
 
-    Vector2 GazeToGameWindow(GazeIO.Sample aSample)
+    Vector2 GazeToGameWindow(GazeIO.Sample sample)
     {
         return new Vector2(
-            aSample.x - Screen.width / 2 - _offset.x,
-            Screen.height / 2 - (aSample.y - _offset.y)
+            sample.x - Screen.width / 2 - _offset.x,
+            Screen.height / 2 - (sample.y - _offset.y)
         );
     }
 
@@ -285,7 +287,7 @@ public class GazeClient : MonoBehaviour
 
         try
         {
-            rc = Utils.GetWindowRect();
+            rc = WinAPI.GetWindowRect();
 
             _offset = new Vector2(
                 rc.x + (rc.width - Screen.width) / 2,
@@ -298,13 +300,13 @@ public class GazeClient : MonoBehaviour
     }
 
     // Tobii
-    private void onTobiiError(object sender, string error)
+    void OnTobiiError(object sender, string error)
     {
         deviceName.text = error;
         print($"TOBII:> ERROR: {error}");
     }
 
-    private void onTobiiReady(object sender, string model)
+    void OnTobiiReady(object sender, string model)
     {
         deviceName.text = model;
         tobiiToggleTracking.interactable = true;
@@ -315,7 +317,7 @@ public class GazeClient : MonoBehaviour
         }
     }
 
-    private void onTobiiToggled(object sender, bool isTracking)
+    void OnTobiiToggled(object sender, bool isTracking)
     {
         tobiiToggleTracking.GetComponentInChildren<Text>().text = isTracking ? "Stop" : "Start";
 
@@ -330,40 +332,40 @@ public class GazeClient : MonoBehaviour
         }
     }
 
-    private void onTobiiData(object sender, GazeIO.Sample sample)
+    void OnTobiiData(object sender, GazeIO.Sample sample)
     {
-        lastSample = sample;
+        LastSample = sample;
         UpdateCursorLocation(sample);
     }
 
     // Simulator
-    void onSimulatorDevice(object aHandler, GazeSimulator.DeviceArgs aArgs)
+    void OnSimulatorDevice(object sender, GazeSimulator.DeviceArgs args)
     {
         if (useTobiiSDK)
         {
-            onTobiiReady(null, aArgs.device.name);
+            OnTobiiReady(null, args.Device.name);
         }
         else
         {
-            UpdateDeviceInfo(aArgs.device);
+            UpdateDeviceInfo(args.Device);
         }
     }
 
-    void onSimulatorState(object aHandler, GazeSimulator.StateArgs aArgs)
+    void OnSimulatorState(object sender, GazeSimulator.StateArgs args)
     {
         if (useTobiiSDK)
         {
-            onTobiiToggled(null, aArgs.state.isTracking);
+            OnTobiiToggled(null, args.State.IsTracking);
         }
         else
         {
-            UpdateState(aArgs.state);
+            UpdateState(args.State);
         }
     }
 
-    void onSimulatorSample(object aHandler, GazeSimulator.SampleArgs aArgs)
+    void OnSimulatorSample(object sender, GazeSimulator.SampleArgs args)
     {
-        lastSample = aArgs.sample;
-        UpdateCursorLocation(aArgs.sample);
+        LastSample = args.Sample;
+        UpdateCursorLocation(args.Sample);
     }
 }

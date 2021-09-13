@@ -29,7 +29,7 @@ public class ThreadDispatcher : MonoBehaviour
     {
         if (_instance == null)
         {
-            _instance = new GameObject("ThreadDispatcher").AddComponent<ThreadDispatcher>();
+            _instance = new GameObject(nameof(ThreadDispatcher)).AddComponent<ThreadDispatcher>();
             DontDestroyOnLoad(_instance.gameObject);
         }
     }
@@ -52,6 +52,8 @@ public class ThreadDispatcher : MonoBehaviour
             _actions.Clear();
         }
     }
+
+    // internal
 
     static ThreadDispatcher _instance;
     static volatile bool _queued = false;

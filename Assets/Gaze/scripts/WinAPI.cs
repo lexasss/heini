@@ -3,9 +3,9 @@ using System.Runtime.InteropServices;
 using UnityEngine;
 
 /**
- * <summary>Unitities that use WinAPI</summary>
+ * <summary>Utilities that use WinAPI</summary>
  * */
-public static class Utils
+public static class WinAPI
 {
     /**
      * <summary>Get the position of either standalone game window (game running as .exe), or the game window in Unity editor</summary>
@@ -13,7 +13,7 @@ public static class Utils
      * */
     public static Vector2 GetWindowPosition()
     {
-        WinRect rect = new WinRect();
+        var rect = new WinRect();
         GetWindowRect(GetUnityWindowHandle(), ref rect);
 
         return new Vector2(rect.left, rect.top);
@@ -25,15 +25,15 @@ public static class Utils
      * */
     public static Rect GetWindowRect()
     {
-        WinRect rect = new WinRect();
-        IntPtr gameHwnd = Application.isEditor ? GetUnityWindowHandle() : GetGameWindowHandle();
+        var rect = new WinRect();
+        var gameHwnd = Application.isEditor ? GetUnityWindowHandle() : GetGameWindowHandle();
         GetWindowRect(gameHwnd, ref rect);
         return new Rect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
     }
 
     #region WinAPI imports
 
-    internal struct WinRect
+    struct WinRect
     {
         public int left;
         public int top;
@@ -42,17 +42,17 @@ public static class Utils
     }
 
     [DllImport("user32.dll", EntryPoint = "GetWindowRect")]
-    private static extern bool GetWindowRect(IntPtr hwnd, ref WinRect rect);
+    static extern bool GetWindowRect(IntPtr hwnd, ref WinRect rect);
     [DllImport("user32.dll", EntryPoint = "FindWindow")]
-    private static extern IntPtr FindWindow(string className, string windowName);
+    static extern IntPtr FindWindow(string className, string windowName);
     [DllImport("user32.dll", EntryPoint = "FindWindowEx")]
-    private static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string className, string windowName);
+    static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string className, string windowName);
 
     #endregion
 
     #region Internal methods
 
-    private static IntPtr GetUnityWindowHandle()
+    static IntPtr GetUnityWindowHandle()
     {
         IntPtr unityHwnd = FindWindowEx(IntPtr.Zero, IntPtr.Zero, "UnityContainerWndClass", null);
         if (unityHwnd == IntPtr.Zero)
@@ -69,7 +69,7 @@ public static class Utils
         return gameHwnd;
     }
 
-    private static IntPtr GetGameWindowHandle()
+    static IntPtr GetGameWindowHandle()
     {
         IntPtr gameHwnd = FindWindowEx(IntPtr.Zero, IntPtr.Zero, null, Application.productName);
         if (gameHwnd != IntPtr.Zero)

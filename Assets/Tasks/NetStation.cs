@@ -13,9 +13,6 @@ public class NetStation : MonoBehaviour
 
     // definitions
 
-    const int MAX_SYCH_ITERATIONS = 5; // 100
-    const float SYNC_LIMIT = 0.0025f;   // seconds
-
     public enum State
     {
         NOT_INITIALIZED = 0,
@@ -48,14 +45,6 @@ public class NetStation : MonoBehaviour
     public event EventHandler<StateChangedEventArgs> Message = delegate { };
 
     public float Timestamp => _syncEpoch == 0f ? -1f : Time.time - _syncEpoch;
-
-    // internal members
-
-    TcpClient _tcp;
-    NetworkStream _stream;
-
-    float _syncEpoch = 0;
-    bool _isRecording = false;
 
     // public methods
 
@@ -147,8 +136,7 @@ public class NetStation : MonoBehaviour
         var start = Timestamp;
         uint duration = 1;
 
-        var bytes = new List<byte>();
-        bytes.Add((byte)'D');
+        var bytes = new List<byte>() { (byte)'D' };
         bytes.AddNet((short)15);
         bytes.AddNet((int)(start * 1000));
         bytes.AddNet((int)duration);
@@ -159,7 +147,17 @@ public class NetStation : MonoBehaviour
         SndAndRcv(bytes.ToArray());
     }
 
-    // internal methods
+
+    // internal
+
+    const int MAX_SYCH_ITERATIONS = 5; // 100
+    const float SYNC_LIMIT = 0.0025f;   // seconds
+
+    TcpClient _tcp;
+    NetworkStream _stream;
+
+    float _syncEpoch = 0;
+    bool _isRecording = false;
 
     void CheckVersion()
     {
@@ -215,8 +213,7 @@ public class NetStation : MonoBehaviour
 
             var now = Timestamp;
 
-            var bytes = new List<byte>();
-            bytes.Add((byte)'T');
+            var bytes = new List<byte> { (byte)'T' };
             bytes.AddNet((Int32)(now * 1000));
             SndAndRcv(bytes.ToArray());
 
@@ -250,7 +247,11 @@ public class NetStation : MonoBehaviour
         _stream.Write(aData, 0, aData.Length);
 
         var msg = new List<string>();
-        foreach (var b in aData) { msg.Add(b.ToString("X").PadLeft(2, '0')); }
+        foreach (var b in aData)
+        {
+            msg.Add(b.ToString("X").PadLeft(2, '0'));
+        }
+
         Debug.Log($"sent '{String.Join(" ", msg)}', waiting for reply...");
 
         byte[] buffer = new byte[16];

@@ -8,25 +8,21 @@ public class HRClient : MonoBehaviour
     public Text status;
     public Button connectButton;
 
-    // internal members
-
-    NetStation _netStation;
-    Log _log;
-
     // overides
 
     void Start()
     {
         _netStation = GetComponent<NetStation>();
-        _netStation.Message += onNetStationMessage;
+        _netStation.Message += OnNetStationMessage;
 
         _log = FindObjectOfType<Log>();
     }
 
-    // public methods
+    // methods
 
     public void Connect()
     {
+        connectButton.enabled = false;
         status.text = $"connecting to {_netStation.Host}:{_netStation.Port}...";
         _netStation.Connect();
     }
@@ -67,7 +63,11 @@ public class HRClient : MonoBehaviour
         SendEvent("VidI");
     }
 
-    // internal methods
+
+    // internal
+
+    NetStation _netStation;
+    Log _log;
 
     void SendEvent(string aMessage)
     {
@@ -75,14 +75,13 @@ public class HRClient : MonoBehaviour
         _netStation.Event(aMessage);
     }
 
-    void onNetStationMessage(object sender, NetStation.StateChangedEventArgs e)
+    void OnNetStationMessage(object sender, NetStation.StateChangedEventArgs e)
     {
         status.text = e.Message;
 
         if (e.State == NetStation.State.CONNECTED)
         {
-            connectButton.enabled = false;
-            Invoke("Begin", 1);
+            Invoke(nameof(Begin), 1);
         }
         else if (e.State == NetStation.State.NOT_CONNECTED || e.State == NetStation.State.FAILED_TO_CONNECT)
         {

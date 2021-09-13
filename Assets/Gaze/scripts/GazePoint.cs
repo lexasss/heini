@@ -3,10 +3,7 @@ using UnityEngine.UI;
 
 public class GazePoint : MonoBehaviour
 {
-    Image _image;
-    bool _enabled = false;
-
-    int _correctionY = 0;
+    // overrides
 
     void Start()
     {
@@ -18,7 +15,7 @@ public class GazePoint : MonoBehaviour
         _correctionY = gazeSimulator.Enabled ? GazeSimulator.TOOLBAR_HEIGHT : 0;
     }
 
-    private void Update()
+    void Update()
     {
         bool pIsPressed = Input.GetKeyDown(KeyCode.P);
         if (pIsPressed)
@@ -28,11 +25,21 @@ public class GazePoint : MonoBehaviour
         }
     }
 
-    public void MoveTo(GazeIO.Sample aGazePoint)
+    // methods
+
+    public void MoveTo(GazeIO.Sample gazePoint)
     {
         if (_enabled)
         {
-            _image.transform.localPosition = new Vector3(aGazePoint.x - Screen.width / 2, Screen.height / 2 - aGazePoint.y + _correctionY, 0);
+            _image.transform.localPosition = new Vector3(gazePoint.x - Screen.width / 2, Screen.height / 2 - gazePoint.y + _correctionY, 0);
         }
     }
+
+
+    // internal
+
+    Image _image;
+    bool _enabled = false;
+
+    int _correctionY = 0;
 }

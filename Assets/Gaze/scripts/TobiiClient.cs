@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using Tobii.Research;
 using GazeIO;
@@ -21,14 +19,14 @@ public class TobiiClient : MonoBehaviour
     public event EventHandler<bool> Toggled = delegate { };
     public event EventHandler<Sample> Data = delegate { };
 
-    private IEyeTracker _eyeTracker = null;
-    private bool _isStreaming = false;
-    private Sample lastSample = null;
+    // overrides
 
     void Start()
     {
         SearchEyeTrackers();
     }
+
+    // methods
 
     public void ToggleTracking()
     {
@@ -36,13 +34,13 @@ public class TobiiClient : MonoBehaviour
         {
             if (!_isStreaming)
             {
-                _eyeTracker.GazeDataReceived += onGazeDataReceived;
-                InvokeRepeating("StreamData", 0.1f, 0.033f);
+                _eyeTracker.GazeDataReceived += OnGazeDataReceived;
+                InvokeRepeating(nameof(StreamData), 0.1f, 0.033f);
             }
             else
             {
-                CancelInvoke("StreamData");
-                _eyeTracker.GazeDataReceived -= onGazeDataReceived;
+                CancelInvoke(nameof(StreamData));
+                _eyeTracker.GazeDataReceived -= OnGazeDataReceived;
             }
 
             _isStreaming = !_isStreaming;
@@ -59,7 +57,13 @@ public class TobiiClient : MonoBehaviour
         }
     }
 
-    // internal methods
+
+    // internal
+
+    IEyeTracker _eyeTracker = null;
+    bool _isStreaming = false;
+    Sample _lastSample = null;
+
     async void SearchEyeTrackers()
     {
         var collection = await EyeTrackingOperations.FindAllEyeTrackersAsync();
@@ -83,66 +87,38 @@ public class TobiiClient : MonoBehaviour
         }
         else
         {
-            Invoke("SearchEyeTrackers", 5);
+            Invoke(nameof(SearchEyeTrackers), 5);
         }
     }
 
     void StreamData()
     {
-        if (lastSample != null)
+        if (_lastSample != null)
         {
             Sample sample;
-            lock (lastSample)
+            lock (_lastSample)
             {
-                sample = Sample.Copy(lastSample);
-                lastSample = null;
+                sample = Sample.Copy(_lastSample);
+                _lastSample = null;
             }
 
             Data(this, sample);
         }
     }
 
-    void onGazeDataReceived(object sender, GazeDataEventArgs e)
+    void OnGazeDataReceived(object sender, GazeDataEventArgs args)
     {
-        var left = e.LeftEye;
-        var right = e.RightEye;
+        var left = args.LeftEye;
+        var right = args.RightEye;
         var gpLeft = left.GazePoint.PositionOnDisplayArea;
         var gpRight = right.GazePoint.PositionOnDisplayArea;
 
-        Sample sample = new Sample
+        var sample = new Sample
         {
-            type = MessageType.sample,
-            ts = (ulong)(e.SystemTimeStamp / 1000),
+            type = MessageType.Sample,
+            ts = (ulong)(args.SystemTimeStamp / 1000),
             p = 0
         };
-
-        /* /////////////
-
-        if (!float.IsNaN(gpRight.X) && !float.IsNaN(gpRight.Y))
-        {
-            sample.x = (float)Math.Round(gpRight.X * Screen.width);
-            sample.y = (float)Math.Round(gpRight.Y * Screen.height);
-        }
-        else
-        {
-            sample.x = -Screen.width;
-            sample.y = -Screen.height;
-        }
-
-        if (lastSample != null)
-        {
-            lock (lastSample)
-            {
-                lastSample = sample;
-            }
-        }
-        else
-        {
-            lastSample = sample;
-        }
-        return;
-
-        ///////////// */
 
         // sample
         var leftPointIsValid = !float.IsNaN(gpLeft.X) && !float.IsNaN(gpLeft.Y);
@@ -195,16 +171,16 @@ public class TobiiClient : MonoBehaviour
 
         // update sample storage
 
-        if (lastSample != null)
+        if (_lastSample != null)
         {
-            lock (lastSample)
+            lock (_lastSample)
             {
-                lastSample = sample;
+                _lastSample = sample;
             }
         }
         else
         {
-            lastSample = sample;
+            _lastSample = sample;
         }
     }
 }

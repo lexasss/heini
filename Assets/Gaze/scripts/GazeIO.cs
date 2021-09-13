@@ -1,5 +1,4 @@
 ﻿using System;
-using UnityEngine.Rendering;
 
 /**
  * <summary>Definitions of structures and constants used in communication with ETUDriver service</summary>
@@ -17,58 +16,58 @@ namespace GazeIO
     }
 
     /** <summary>Request string</summary> */
-    public static class Request
+    internal static class Request
     {
-        public static string showOptions { get { return "SHOW_OPTIONS"; } }
-        public static string calibrate { get { return "CALIBRATE"; } }
-        public static string toggleTracking { get { return "TOGGLE_TRACKING"; } }
-        public static string setDevice { get { return "SET_DEVICE"; } }
-        public static string passValue { get { return "PASS_VALUE"; } }
+        public static string ShowOptions => "SHOW_OPTIONS";
+        public static string Calibrate => "CALIBRATE";
+        public static string ToggleTracking => "TOGGLE_TRACKING";
+        public static string SetDevice => "SET_DEVICE";
+        public static string PassValue => "PASS_VALUE";
     }
 
     /** <summary>Content of the "type" field of JSON object received from the server</summary> */
     public static class MessageType
     {
-        public static string sample { get { return "sample"; } }
-        public static string state { get { return "state"; } }
-        public static string device { get { return "device"; } }
-        public static string custom { get { return "custom"; } }
+        public static string Sample => "sample";
+        public static string State => "state";
+        public static string Device => "device";
+        public static string Custom => "custom";
     }
 
-    /** <summary>interface for the JSON message received from the server</summary> */
-    interface Message
+    /** <summary>Interface for the JSON message received from the server</summary> */
+    interface IMessage
     {
         /** <summary>Returns true if the "type" field of JSON object corresponds to the structure that implement this interface</summary> */
-        bool isValid { get; }
+        bool IsValid { get; }
     }
 
     /** <summary>Message with a device name</summary> */
-    public class Device : Message
+    public class Device : IMessage
     {
         public string type = "";
         /** <summary>Device name</summary> */
         public string name = "";
 
-        public bool isValid { get { return type == MessageType.device; } }
+        public bool IsValid => type == MessageType.Device;
     }
 
     /** <summary>Message with the ETUDriver state</summary> */
-    public class State : Message
+    public class State : IMessage
     {
         public string type = "";
         /** <summary>State flags. Use "isXxxx" properties to get the value of a particular state flag</summary> */
         public int value = -1;
 
-        public bool isValid { get { return type == MessageType.state; } }
+        public bool IsValid => type == MessageType.State;
 
-        public bool isConnected { get { return (value & (int)StateValue.Connected) > 0; } }
-        public bool isCalibrated { get { return (value & (int)StateValue.Calibrated) > 0; } }
-        public bool isTracking { get { return (value & (int)StateValue.Tracking) > 0; } }
-        public bool isBusy { get { return (value & (int)StateValue.Busy) > 0; } }
+        public bool IsConnected => (value & (int)StateValue.Connected) > 0;
+        public bool IsCalibrated => (value & (int)StateValue.Calibrated) > 0;
+        public bool IsTracking => (value & (int)StateValue.Tracking) > 0;
+        public bool IsBusy => (value & (int)StateValue.Busy) > 0;
     }
 
     /** <summary>Message with a gaze sample</summary> */
-    public class Sample : Message
+    public class Sample : IMessage
     {
         /** <summary>Eyes in tracker's camera view</summary> */
         public class EyesInCamera
@@ -95,20 +94,25 @@ namespace GazeIO
         /** <summary>Eyes in camera view</summary> */
         public EyesInCamera ec = new EyesInCamera();
 
-        public bool isValid { get { return type == MessageType.sample; } }
+        public bool IsValid => type == MessageType.Sample;
 
-        public static Sample Copy(Sample aRef)
+        public static Sample Copy(Sample refs)
         {
-            Sample s = new Sample();
-            s.type = MessageType.sample;
-            s.ts = aRef.ts;
-            s.x = aRef.x;
-            s.y = aRef.y;
-            s.p = aRef.p;
-            s.ec.xl = aRef.ec.xl;
-            s.ec.yl = aRef.ec.yl;
-            s.ec.xr = aRef.ec.xr;
-            s.ec.yr = aRef.ec.yr;
+            var s = new Sample
+            {
+                type = MessageType.Sample,
+                ts = refs.ts,
+                x = refs.x,
+                y = refs.y,
+                p = refs.p,
+                ec = new EyesInCamera()
+                {
+                    xl = refs.ec.xl,
+                    yl = refs.ec.yl,
+                    xr = refs.ec.xr,
+                    yr = refs.ec.yr
+                }
+            };
             return s;
         }
     }

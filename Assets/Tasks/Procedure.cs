@@ -58,8 +58,7 @@ public class Procedure : MonoBehaviour
         }
     }
 
-
-    // Public methods
+    // methods
 
     public void StartSet1()
     {
@@ -83,7 +82,7 @@ public class Procedure : MonoBehaviour
 
     public void Finish()
     {
-        if (_gazeClient.isTracking)
+        if (_gazeClient.IsTracking)
         {
             _gazeClient.ToggleTracking();
         }
@@ -99,7 +98,7 @@ public class Procedure : MonoBehaviour
     }
 
 
-    // Internal
+    // internal
 
     HRClient _hrClient;
     Log _log;
@@ -130,7 +129,7 @@ public class Procedure : MonoBehaviour
 
         backgroundAudio.Play();
 
-        infoDisplay.text = "press SPACE to start...";
+        infoDisplay.text = "starting...";
 
         Invoke(nameof(WaitForNextVideo), 1f);
     }
@@ -173,7 +172,7 @@ public class Procedure : MonoBehaviour
 
     void OnGazeClientStart(object sender, EventArgs e)
     {
-        var buttons = FindObjectsOfType(typeof(Button)).Where(btn => (btn as Button).tag == "only-gaze-active");
+        var buttons = FindObjectsOfType(typeof(Button)).Where(btn => (btn as Button).CompareTag("only-gaze-active"));
         foreach (var btn in buttons)
         {
             (btn as Button).interactable = true;
@@ -182,7 +181,7 @@ public class Procedure : MonoBehaviour
 
     void OnGazeClientSample(object sender, EventArgs e)
     {
-        _gazePoint.MoveTo(_gazeClient.lastSample);
+        _gazePoint.MoveTo(_gazeClient.LastSample);
     }
 
     void OnVideoStopped(VideoPlayer player)

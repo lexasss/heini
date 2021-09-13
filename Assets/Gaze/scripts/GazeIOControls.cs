@@ -2,10 +2,6 @@
 
 public class GazeIOControls : MonoBehaviour
 {
-    // internal members
-
-    GazeClient _gazeClient;
-
     // overrides
 
     void Start()
@@ -13,7 +9,7 @@ public class GazeIOControls : MonoBehaviour
         _gazeClient = FindObjectOfType<GazeClient>();
     }
 
-    // public methods
+    // methods
 
     public void Options()
     {
@@ -29,4 +25,9 @@ public class GazeIOControls : MonoBehaviour
     {
         _gazeClient.ToggleTracking();
     }
+
+
+    // internal
+
+    GazeClient _gazeClient;
 }

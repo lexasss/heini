@@ -16,7 +16,7 @@ public class VideoSets : MonoBehaviour
     public bool HasMoreVideos => _currentSet != null && (_index + 1) < _currentSet.Length;
     public int CurrentSetID { get; private set; } = -1;
 
-    // methods
+    // overrides
 
     public void Awake()
     {
@@ -33,6 +33,8 @@ public class VideoSets : MonoBehaviour
     {
         _index = -1;
     }
+
+    // methods
 
     public void SelectSet(int index)
     {
@@ -62,7 +64,7 @@ public class VideoSets : MonoBehaviour
     }
 
 
-    // Internal
+    // internal
 
     int _index = -1;
     VideoClip[][] _sets;

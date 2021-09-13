@@ -4,9 +4,9 @@ using UnityEngine;
 
 /**
   * <summary>Smoothes gaze point.
-  * Smoothing can be controlling via <see cref="dampFixation"/> and <see cref="dampSaccade"/> (smoothing strenghs) parameters.
-  * <see cref="timeWindow"/> should be long enough to contain at least 6 samples.
-  * <see cref="saccadeThreshold"/> affects the fixation/saccade damping mode: 
+  * Smoothing can be controlling via <see cref="DampFixation"/> and <see cref="DampSaccade"/> (smoothing strenghs) parameters.
+  * <see cref="TimeWindow"/> should be long enough to contain at least 6 samples.
+  * <see cref="SaccadeThreshold"/> affects the fixation/saccade damping mode: 
   * with smaller values saccade damping (mild smoothing) is applied more often.
   * </summary>
   * <typeparam name="T">Data type (point or vector)</typeparam>
@@ -24,98 +24,97 @@ public class Smoother<T> where T : IRawData
         Saccade
     }
 
-    /** <summary>Data damping (smoothing strength) during fixations. Default is 300.</summary> */
-    public uint dampFixation { get; set; } = 100;
+    /** <summary>Data damping (smoothing strength) during fixations.</summary> */
+    public uint DampFixation { get; set; } = 100;
 
-    /** <summary>Data damping (smoothing strength) during saccades. Default is 10</summary> */
-    public uint dampSaccade { get; set; } = 1;
+    /** <summary>Data damping (smoothing strength) during saccades.</summary> */
+    public uint DampSaccade { get; set; } = 1;
 
     /** <summary>Buffer time window, ms. Should be long enough to contain at least 6 samples</summary> */
-    public uint timeWindow { get; set; } = 100;
+    public uint TimeWindow { get; set; } = 100;
 
     /**
       * <summary>Distance of the average values of two parts of the buffer are compared against this threshold to determine the gaze state
       * (fixation / saccade) and therefore smoothing strength.</summary>
       */
-    public double saccadeThreshold { get; set; } = 0.02;
+    public double SaccadeThreshold { get; set; } = 0.02;
 
     /** <summary>Sampling interval, ms. If the interval is set to 0 initially (default) then it is computed automatically.</summary> */
-    public ulong interval { get; set; } = 0u;
+    public ulong Interval { get; set; } = 0u;
 
-    #region Internal variables
-
-    private Queue<T> _buffer = new Queue<T>();
-    private bool _isBufferFull = false;
-    private T _current = default(T);
-    private GazeState _state = GazeState.Fixation;
-
-    private System.Reflection.MethodInfo Copier = typeof(T).GetMethod("copyFrom", new Type[] { typeof(T) });
-
-    private uint damp { get { return _state == GazeState.Fixation ? dampFixation : dampSaccade; } }
-
-    #endregion
 
     /** <summary>Resets the internal state</summary> */
     public void Reset()
     {
         _buffer.Clear();
         _isBufferFull = false;
-        _current = default(T);
-        interval = 0u;
+        _current = default;
+        Interval = 0u;
         _state = GazeState.Unknown;
     }
 
     /**
       * <summary>Take raw data and outputs smoothed data</summary>
-      * <param name="aData">Data to smooth</param>
+      * <param name="data">Data to smooth</param>
       * <returns>Smoothed data</returns>
       * */
-    public T Feed(T aData)
+    public T Feed(T data)
     {
-        bool isBufferFull = AddToBuffer(aData);
+        bool isBufferFull = AddToBuffer(data);
         if (!isBufferFull)
         {
-            _current = (T)Copier.Invoke(null, new object[] { aData });
+            _current = (T)Copier.Invoke(null, new object[] { data });
             return _current;
         }
 
         _state = EstimateState();
         if (_state == GazeState.Unknown)
         {
-            _current = (T)Copier.Invoke(null, new object[] { aData });
+            _current = (T)Copier.Invoke(null, new object[] { data });
             return _current;
         }
 
-        if (interval == 0u)
+        if (Interval == 0u)
         {
-            interval = EstimateInterval(aData);
-            _current = (T)Copier.Invoke(null, new object[] { aData });
+            Interval = EstimateInterval(data);
+            _current = (T)Copier.Invoke(null, new object[] { data });
         }
 
-        double alfa = (double)damp / interval;
-        _current.shift(aData, alfa, aData.timestamp);
+        double alfa = (double)_damp / Interval;
+        _current.Shift(data, alfa, data.Timestamp);
 
         return _current;
     }
 
-    #region Internal methods
 
-    private bool AddToBuffer(T aData)
+    // Internal
+
+    readonly Queue<T> _buffer = new Queue<T>();
+
+    bool _isBufferFull = false;
+    T _current = default;
+    GazeState _state = GazeState.Fixation;
+
+    uint _damp => _state == GazeState.Fixation ? DampFixation : DampSaccade;
+
+    readonly System.Reflection.MethodInfo Copier = typeof(T).GetMethod("CopyFrom", new Type[] { typeof(T) });
+
+    bool AddToBuffer(T data)
     {
-        _buffer.Enqueue(aData);
+        _buffer.Enqueue(data);
 
-        ulong firstTimestamp = _buffer.Peek().timestamp;
+        ulong firstTimestamp = _buffer.Peek().Timestamp;
 
         if (!_isBufferFull)
-            _isBufferFull = aData.timestamp - firstTimestamp >= timeWindow && _buffer.Count > 3;
+            _isBufferFull = data.Timestamp - firstTimestamp >= TimeWindow && _buffer.Count > 3;
 
-        while (aData.timestamp - _buffer.Peek().timestamp >= timeWindow)
+        while (data.Timestamp - _buffer.Peek().Timestamp >= TimeWindow)
             _buffer.Dequeue();
 
         return _isBufferFull;
     }
 
-    private GazeState EstimateState()
+    GazeState EstimateState()
     {
         float avgXB = 0f;
         float avgYB = 0f;
@@ -124,126 +123,118 @@ public class Smoother<T> where T : IRawData
         float ptsBeforeCount = 0f;
         float ptsAfterCount = 0f;
 
-        ulong oldestTimestamp = _buffer.Peek().timestamp;
+        ulong oldestTimestamp = _buffer.Peek().Timestamp;
 
         foreach (T data in _buffer)
         {
-            ulong dt = data.timestamp - oldestTimestamp;
-            if (dt > timeWindow / 2)
+            ulong dt = data.Timestamp - oldestTimestamp;
+            if (dt > TimeWindow / 2)
             {
-                avgXB += data.x;
-                avgYB += data.y;
+                avgXB += data.X;
+                avgYB += data.Y;
                 ptsBeforeCount++;
             }
             else
             {
-                avgXA += data.x;
-                avgYA += data.y;
+                avgXA += data.X;
+                avgYA += data.Y;
                 ptsAfterCount++;
             }
         }
 
         if (ptsBeforeCount > 0 && ptsAfterCount > 0)
         {
-            avgXB = avgXB / ptsBeforeCount;
-            avgYB = avgYB / ptsBeforeCount;
-            avgXA = avgXA / ptsAfterCount;
-            avgYA = avgYA / ptsAfterCount;
+            avgXB /= ptsBeforeCount;
+            avgYB /= ptsBeforeCount;
+            avgXA /= ptsAfterCount;
+            avgYA /= ptsAfterCount;
 
             var dx = avgXB - avgXA;
             var dy = avgYB - avgYA;
             var dist = Math.Sqrt(dx * dx + dy * dy);
 
-            return dist > saccadeThreshold ? GazeState.Saccade : GazeState.Fixation;
+            return dist > SaccadeThreshold ? GazeState.Saccade : GazeState.Fixation;
         }
 
         return GazeState.Unknown;
     }
 
-    private ulong EstimateInterval(T aData)
+    ulong EstimateInterval(T data)
     {
         if (_buffer.Count < 2)
             return 0;
 
-        ulong duration = aData.timestamp - _buffer.Peek().timestamp;
+        ulong duration = data.Timestamp - _buffer.Peek().Timestamp;
         return (ulong)((int)duration / (_buffer.Count - 1));
     }
-
-    #endregion
 }
 
 /** <summary>Interface for shoothing data</summary> */
 public interface IRawData
 {
     /** <summary>Timestamp, ms</summary> */
-    ulong timestamp { get; }
+    ulong Timestamp { get; }
 
     /** <summary>Gaze X</summary> */
-    float x { get; }
+    float X { get; }
 
     /** <summary>Gaze Y</summary> */
-    float y { get; }
-
-    /**
-      * <summary>Copies values from another data</summary>
-      * <param name="aRef">Reference to copy from</param>
-      */
-    //void static copyFrom(IRawData aRef);
+    float Y { get; }
 
     /**
       * <summary>Applies smooting</summary>
-      * <param name="aRef">Latest raw data</param>
-      * <param name="aAlfa">Alfa</param>
-      * <param name="aTimestamp">New timestamp</param>
+      * <param name="refs">Latest raw data</param>
+      * <param name="alfa">Alfa</param>
+      * <param name="timestamp">New timestamp</param>
       */
-    void shift(IRawData aRef, double aAlfa, ulong aTimestamp);
+    void Shift(IRawData refs, double alfa, ulong timestamp);
 }
 
 /** <summary>Raw 2D gaze point</summary> */
 public class RawPoint : IRawData
 {
     /** <summary>Timestamp, ms</summary> */
-    public ulong timestamp { get; private set; }
+    public ulong Timestamp { get; private set; }
 
     /** <summary>Gaze X</summary> */
-    public float x { get; private set; }
+    public float X { get; private set; }
 
     /** <summary>Gaze Y</summary> */
-    public float y { get; private set; }
+    public float Y { get; private set; }
 
     /**
       * <summary>Constructor</summary>
-      * <param name="aTimestamp">Timestamp, ms</param>
-      * <param name="aX">Gaze X</param>
-      * <param name="aY">Gaze Y</param>
+      * <param name="timestamp">Timestamp, ms</param>
+      * <param name="x">Gaze X</param>
+      * <param name="y">Gaze Y</param>
       */
-    public RawPoint(ulong aTimestamp, float aX, float aY)
+    public RawPoint(ulong timestamp, float x, float y)
     {
-        timestamp = aTimestamp;
-        x = aX;
-        y = aY;
+        Timestamp = timestamp;
+        X = x;
+        Y = y;
     }
 
     /**
       * <summary>Copies values from another data</summary>
-      * <param name="aRef">Reference to copy from</param>
+      * <param name="refs">Reference to copy from</param>
       */
-    public static RawPoint copyFrom(IRawData aRef)
+    public static RawPoint CopyFrom(IRawData refs)
     {
-        return new RawPoint(aRef.timestamp, aRef.x, aRef.y);
+        return new RawPoint(refs.Timestamp, refs.X, refs.Y);
     }
 
     /**
       * <summary>Applies smooting</summary>
-      * <param name="aRef">Latest raw data</param>
-      * <param name="aAlfa">Alfa</param>
-      * <param name="aTimestamp">New timestamp</param>
+      * <param name="refs">Latest raw data</param>
+      * <param name="alfa">Alfa</param>
+      * <param name="timestamp">New timestamp</param>
       */
-    public void shift(IRawData aRef, double aAlfa, ulong aTimestamp)
+    public void Shift(IRawData refs, double alfa, ulong timestamp)
     {
-        timestamp = aTimestamp;
-        x = (float)((aRef.x + aAlfa * x) / (1.0 + aAlfa));
-        y = (float)((aRef.y + aAlfa * y) / (1.0 + aAlfa));
+        Timestamp = timestamp;
+        X = (float)((refs.X + alfa * X) / (1.0 + alfa));
+        Y = (float)((refs.Y + alfa * Y) / (1.0 + alfa));
     }
 }
 
@@ -251,64 +242,69 @@ public class RawPoint : IRawData
 public class RawVector : IRawData
 {
     /** <summary>Timestamp, ms</summary> */
-    public ulong timestamp { get; private set; }
+    public ulong Timestamp { get; private set; }
 
     /** <summary>Gaze X</summary> */
-    public float x { get; private set; }
+    public float X { get; private set; }
 
     /** <summary>Gaze Y</summary> */
-    public float y { get; private set; }
+    public float Y { get; private set; }
 
     /** <summary>Gaze Z</summary> */
-    public float z { get; private set; }
+    public float Z { get; private set; }
 
     /** <summary>Original vector</summary> */
-    public Vector3 vectorOriginal { get { return _vector; } }
+    public Vector3 VectorOriginal => _vector;
 
     /** <summary>Shifted vector</summary> */
-    public Vector3 vectorShifted { get { return new Vector3(x, y, z); } }
-
-    private Vector3 _vector;
+    public Vector3 VectorShifted => new Vector3(X, Y, Z);
 
     /**
       * <summary>Constructor</summary>
-      * <param name="aTimestamp">Timestamp, ms</param>
-      * <param name="aVector">Gaze vector</param>
+      * <param name="timestamp">Timestamp, ms</param>
+      * <param name="vector">Gaze vector</param>
       */
-    public RawVector(ulong aTimestamp, Vector3 aVector)
+    public RawVector(ulong timestamp, Vector3 vector)
     {
-        _vector = aVector;
+        _vector = vector;
 
-        timestamp = aTimestamp;
+        Timestamp = timestamp;
 
-        x = (float)Math.Tan(Math.Asin(_vector.x));
-        y = (float)Math.Tan(Math.Asin(_vector.y));
+        X = (float)Math.Tan(Math.Asin(_vector.x));
+        Y = (float)Math.Tan(Math.Asin(_vector.y));
     }
 
     /**
       * <summary>Copies values from another data</summary>
-      * <param name="aRef">Reference to copy from</param>
+      * <param name="refs">Reference to copy from</param>
       */
-    public static RawVector copyFrom(IRawData aRef)
+    public static RawVector CopyFrom(IRawData refs)
     {
-        RawVector r = (RawVector)aRef;
+        RawVector r = (RawVector)refs;
         if (r == null)
+        {
             throw new ArgumentException("Cannot copy from the instance of another type");
+        }
 
-        return new RawVector(r.timestamp, new Vector3(r.x, r.y, r.z));
+        return new RawVector(r.Timestamp, new Vector3(r.X, r.Y, r.Z));
     }
 
     /**
       * <summary>Applies smooting</summary>
-      * <param name="aRef">Latest raw data</param>
-      * <param name="aAlfa">Alfa</param>
-      * <param name="aTimestamp">New timestamp</param>
+      * <param name="refs">Latest raw data</param>
+      * <param name="alfa">Alfa</param>
+      * <param name="timestamp">New timestamp</param>
       */
-    public void shift(IRawData aRef, double aAlfa, ulong aTimestamp)
+    public void Shift(IRawData refs, double alfa, ulong timestamp)
     {
-        timestamp = aTimestamp;
-        x = (float)((aRef.x + aAlfa * x) / (1.0 + aAlfa));
-        y = (float)((aRef.y + aAlfa * y) / (1.0 + aAlfa));
-        z = (float)Math.Sqrt(1 - x * x - y * y);
+        Timestamp = timestamp;
+        X = (float)((refs.X + alfa * X) / (1.0 + alfa));
+        Y = (float)((refs.Y + alfa * Y) / (1.0 + alfa));
+        Z = (float)Math.Sqrt(1 - X * X - Y * Y);
     }
+
+
+    // internal
+
+    Vector3 _vector;
 }
