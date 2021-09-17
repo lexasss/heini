@@ -10,6 +10,8 @@ public class VideoSets : MonoBehaviour
     public VideoClip[] set2;
     public VideoClip[] set3;
     public VideoClip[] set4;
+    public VideoClip[] set5;
+    public VideoClip[] set6;
 
     // props
 
@@ -20,12 +22,14 @@ public class VideoSets : MonoBehaviour
 
     public void Awake()
     {
-        _sets = new VideoClip[4][]
+        _sets = new VideoClip[6][]
         {
             set1,
             set2,
             set3,
             set4,
+            set5,
+            set6,
         };
     }
 
@@ -43,6 +47,7 @@ public class VideoSets : MonoBehaviour
             throw new ArgumentOutOfRangeException();
         }
 
+        _index = -1;
         CurrentSetID = index;
         _currentSet = _sets[index];
     }

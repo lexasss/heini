@@ -80,6 +80,16 @@ public class Procedure : MonoBehaviour
         StartSet(3);
     }
 
+    public void StartSet5()
+    {
+        StartSet(4);
+    }
+
+    public void StartSet6()
+    {
+        StartSet(5);
+    }
+
     public void Finish()
     {
         if (_gazeClient.IsTracking)
@@ -127,7 +137,7 @@ public class Procedure : MonoBehaviour
         _videoSets.SelectSet(setID);
         _hrClient.StartSet(setID + 1);
 
-        backgroundAudio.Play();
+        //backgroundAudio.Play();
 
         infoDisplay.text = "starting...";
 
@@ -196,7 +206,7 @@ public class Procedure : MonoBehaviour
         }
         else
         {
-            backgroundAudio.Stop();
+            //backgroundAudio.Stop();
             _hrClient.StopSet();
 
             sessionDone.Play();
